@@ -12,3 +12,10 @@
 2026-04-14 15:17:25 [WARN]: Twilio not configured — skipping WhatsApp notification
 2026-04-14 15:17:25 [WARN]: Twilio not configured — skipping SMS notification
 2026-04-14 15:17:25 [INFO]: Tracking link sent to 8308703501
+2026-04-14 16:33:47 [INFO]: Server running in development mode on port 5000
+2026-04-14 16:33:48 [INFO]: MongoDB Connected: ac-zgpuoqm-shard-00-02.1uxlxlo.mongodb.net
+2026-04-14 16:33:48 [INFO]: Default admin created
+2026-04-14 16:57:23 [INFO]: Server running in development mode on port 5000
+2026-04-14 16:57:24 [INFO]: MongoDB Connected: ac-zgpuoqm-shard-00-01.1uxlxlo.mongodb.net
+2026-04-14 16:57:27 [INFO]: Server running in development mode on port 5000
+2026-04-14 16:57:27 [INFO]: MongoDB Connected: ac-zgpuoqm-shard-00-02.1uxlxlo.mongodb.net
