@@ -1,0 +1,14 @@
+2026-04-14 12:17:14 [INFO]: Server running in development mode on port 5000
+2026-04-14 12:17:14 [INFO]: MongoDB Connected: localhost
+2026-04-14 12:17:14 [INFO]: Default admin created
+2026-04-14 12:22:01 [INFO]: Server running in development mode on port 5000
+2026-04-14 12:22:01 [INFO]: MongoDB Connected: localhost
+2026-04-14 12:25:33 [INFO]: Server running in development mode on port 5000
+2026-04-14 12:25:33 [INFO]: MongoDB Connected: localhost
+2026-04-14 12:25:33 [INFO]: Default admin created
+2026-04-14 12:29:58 [WARN]: Twilio not configured — skipping WhatsApp notification
+2026-04-14 12:29:58 [WARN]: Twilio not configured — skipping SMS notification
+2026-04-14 12:29:58 [INFO]: Tracking link sent to 9898699526
+2026-04-14 15:17:25 [WARN]: Twilio not configured — skipping WhatsApp notification
+2026-04-14 15:17:25 [WARN]: Twilio not configured — skipping SMS notification
+2026-04-14 15:17:25 [INFO]: Tracking link sent to 8308703501
