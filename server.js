@@ -44,9 +44,13 @@ app.get('/api/health', (req, res) => {
 });
 
 // 404 handler
-app.use((req, res) => {
-  res.status(404).json({ success: false, message: 'Route not found' });
+// app.use((req, res) => {
+//   res.status(404).json({ success: false, message: 'Route not found' });
+// });
+app.get('/', (req, res) => {
+  res.json({ status: 'OK', message: 'Tailor Server is running' });
 });
+
 
 // Global error handler
 app.use(errorMiddleware);
