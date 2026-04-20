@@ -222,6 +222,190 @@ const getDashboardStats = async (req, res) => {
   });
 };
 
+// @desc    Get upcoming deadlines (trials & deliveries) and overdue orders
+// @route   GET /api/orders/deadlines
+// @access  Private
+const getDeadlines = async (req, res) => {
+  const now = new Date();
+  const activeStatuses = ['PENDING', 'IN_PROGRESS', 'COMPLETED'];
+
+  // Overdue orders: delivery_date passed but not delivered/cancelled
+  const overdue = await Order.find({
+    delivery_date: { $lt: now },
+    status: { $in: activeStatuses },
+  })
+    .populate('customer_id', 'name phone')
+    .sort({ delivery_date: 1 })
+    .lean();
+
+  // Upcoming trials in the next 14 days
+  const in14Days = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+  const upcomingTrials = await Order.find({
+    trial_date: { $gte: now, $lte: in14Days },
+    status: { $in: activeStatuses },
+  })
+    .populate('customer_id', 'name phone')
+    .sort({ trial_date: 1 })
+    .lean();
+
+  // Upcoming deliveries in the next 14 days
+  const upcomingDeliveries = await Order.find({
+    delivery_date: { $gte: now, $lte: in14Days },
+    status: { $in: activeStatuses },
+  })
+    .populate('customer_id', 'name phone')
+    .sort({ delivery_date: 1 })
+    .lean();
+
+  // All orders with dates for calendar view (current month ± 1 month)
+  const startOfRange = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const endOfRange = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+  const calendarOrders = await Order.find({
+    status: { $in: activeStatuses },
+    $or: [
+      { trial_date: { $gte: startOfRange, $lte: endOfRange } },
+      { delivery_date: { $gte: startOfRange, $lte: endOfRange } },
+    ],
+  })
+    .populate('customer_id', 'name phone')
+    .sort({ delivery_date: 1 })
+    .lean();
+
+  res.json({
+    success: true,
+    data: {
+      overdue,
+      upcomingTrials,
+      upcomingDeliveries,
+      calendarOrders,
+      summary: {
+        overdueCount: overdue.length,
+        upcomingTrialsCount: upcomingTrials.length,
+        upcomingDeliveriesCount: upcomingDeliveries.length,
+      },
+    },
+  });
+};
+
+// @desc    Get chart data (orders & revenue) for a custom date range
+// @route   GET /api/orders/chart-data?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
+// @access  Private
+const getChartData = async (req, res) => {
+  const now = new Date();
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  // Parse date range — default to last 12 months
+  let start = req.query.startDate ? new Date(req.query.startDate) : new Date(now.getFullYear(), now.getMonth() - 11, 1);
+  let end = req.query.endDate ? new Date(req.query.endDate) : now;
+
+  // Ensure end covers the full day
+  end = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59, 999);
+
+  const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+
+  // Auto-detect grouping: daily (<=62 days), monthly (<=730 days ~2 yrs), yearly (>730 days)
+  let groupMode;
+  if (diffDays <= 62) groupMode = 'daily';
+  else if (diffDays <= 730) groupMode = 'monthly';
+  else groupMode = 'yearly';
+
+  // Build aggregation group _id based on mode
+  let groupId;
+  if (groupMode === 'daily') {
+    groupId = { year: { $year: '$createdAt' }, month: { $month: '$createdAt' }, day: { $dayOfMonth: '$createdAt' } };
+  } else if (groupMode === 'monthly') {
+    groupId = { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } };
+  } else {
+    groupId = { year: { $year: '$createdAt' } };
+  }
+
+  const statusGroup = {
+    totalOrders: { $sum: 1 },
+    completed: { $sum: { $cond: [{ $in: ['$status', ['COMPLETED', 'DELIVERED']] }, 1, 0] } },
+    pending: { $sum: { $cond: [{ $in: ['$status', ['PENDING', 'IN_PROGRESS']] }, 1, 0] } },
+    cancelled: { $sum: { $cond: [{ $eq: ['$status', 'CANCELLED'] }, 1, 0] } },
+  };
+
+  const matchStage = { $match: { createdAt: { $gte: start, $lte: end } } };
+
+  const [ordersAgg, revenueAgg] = await Promise.all([
+    Order.aggregate([
+      matchStage,
+      { $group: { _id: groupId, ...statusGroup } },
+      { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } },
+    ]),
+    Invoice.aggregate([
+      matchStage,
+      {
+        $group: {
+          _id: groupId,
+          revenue: { $sum: '$total_amount' },
+          collected: { $sum: '$advance_paid' },
+          pending: { $sum: '$pending_amount' },
+        },
+      },
+      { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } },
+    ]),
+  ]);
+
+  // Build full chart array filling empty slots with zeros
+  const chartData = [];
+
+  const makeEntry = (oData, rData, labels) => ({
+    ...labels,
+    totalOrders: oData?.totalOrders || 0,
+    completed: oData?.completed || 0,
+    pending: oData?.pending || 0,
+    cancelled: oData?.cancelled || 0,
+    revenue: rData?.revenue || 0,
+    collected: rData?.collected || 0,
+    pendingAmount: rData?.pending || 0,
+  });
+
+  if (groupMode === 'daily') {
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const year = d.getFullYear();
+      const month = d.getMonth() + 1;
+      const day = d.getDate();
+      const oData = ordersAgg.find((o) => o._id.year === year && o._id.month === month && o._id.day === day);
+      const rData = revenueAgg.find((r) => r._id.year === year && r._id.month === month && r._id.day === day);
+      chartData.push(makeEntry(oData, rData, {
+        label: `${day} ${monthNames[month - 1]} ${year}`,
+        shortLabel: `${day} ${monthNames[month - 1]}`,
+        fullLabel: `${dayNames[d.getDay()]}, ${day} ${monthNames[month - 1]} ${year}`,
+      }));
+    }
+  } else if (groupMode === 'monthly') {
+    const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+    const endMonth = new Date(end.getFullYear(), end.getMonth(), 1);
+    while (cursor <= endMonth) {
+      const year = cursor.getFullYear();
+      const month = cursor.getMonth() + 1;
+      const oData = ordersAgg.find((o) => o._id.year === year && o._id.month === month);
+      const rData = revenueAgg.find((r) => r._id.year === year && r._id.month === month);
+      chartData.push(makeEntry(oData, rData, {
+        label: `${monthNames[month - 1]} ${year}`,
+        shortLabel: monthNames[month - 1],
+        fullLabel: `${monthNames[month - 1]} ${year}`,
+      }));
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+  } else {
+    for (let y = start.getFullYear(); y <= end.getFullYear(); y++) {
+      const oData = ordersAgg.find((o) => o._id.year === y);
+      const rData = revenueAgg.find((r) => r._id.year === y);
+      chartData.push(makeEntry(oData, rData, {
+        label: `${y}`,
+        shortLabel: `${y}`,
+        fullLabel: `${y}`,
+      }));
+    }
+  }
+
+  res.json({ success: true, data: chartData, groupMode, range: { start, end, days: diffDays } });
+};
+
 // @desc    Delete order
 // @route   DELETE /api/orders/:id
 // @access  Private
@@ -243,5 +427,7 @@ module.exports = {
   uploadItemImage,
   updateMeasurements,
   getDashboardStats,
+  getDeadlines,
+  getChartData,
   deleteOrder,
 };

@@ -9,6 +9,8 @@ const {
   uploadItemImage,
   updateMeasurements,
   getDashboardStats,
+  getDeadlines,
+  getChartData,
   deleteOrder,
 } = require('../controllers/orderController');
 const { protect } = require('../middlewares/authMiddleware');
@@ -17,6 +19,8 @@ const { upload } = require('../middlewares/uploadMiddleware');
 router.use(protect);
 
 router.get('/stats', getDashboardStats);
+router.get('/deadlines', getDeadlines);
+router.get('/chart-data', getChartData);
 router.route('/').get(getOrders).post(createOrder);
 router.route('/:id').get(getOrderById).put(updateOrder).delete(deleteOrder);
 router.put('/:orderId/items/:itemId/status', updateItemStatus);

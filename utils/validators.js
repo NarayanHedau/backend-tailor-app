@@ -71,6 +71,20 @@ const paymentSchema = Joi.object({
   method: Joi.string().valid('CASH', 'CARD', 'UPI', 'BANK').default('CASH'),
 });
 
+const measurementProfileSchema = Joi.object({
+  label: Joi.string().min(1).max(50).required().messages({ 'any.required': 'Profile label is required' }),
+  chest: Joi.number().min(0).optional(),
+  waist: Joi.number().min(0).optional(),
+  hips: Joi.number().min(0).optional(),
+  shoulder: Joi.number().min(0).optional(),
+  sleeve: Joi.number().min(0).optional(),
+  length: Joi.number().min(0).optional(),
+  neck: Joi.number().min(0).optional(),
+  inseam: Joi.number().min(0).optional(),
+  thigh: Joi.number().min(0).optional(),
+  notes: Joi.string().allow('', null).optional(),
+});
+
 module.exports = {
   loginSchema,
   customerSchema,
@@ -78,4 +92,5 @@ module.exports = {
   itemStatusSchema,
   invoiceSchema,
   paymentSchema,
+  measurementProfileSchema,
 };
