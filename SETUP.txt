@@ -1,0 +1,219 @@
+====================================================================
+ TAILOR APP - BACKEND SETUP GUIDE
+====================================================================
+
+This is the "server" part of the app. It keeps all your customers,
+orders, invoices, and business data safe in a database. The admin
+dashboard you see in the browser talks to this server for everything.
+
+Follow the steps below in order. If something goes wrong, scroll down
+to the TROUBLESHOOTING section at the bottom.
+
+
+--------------------------------------------------------------------
+ WHAT YOU NEED BEFORE STARTING
+--------------------------------------------------------------------
+
+1) Node.js (a free program that runs the server)
+
+   Download from:  https://nodejs.org
+   Choose the "LTS" version (the green button on the left).
+   Install it using the default options.
+
+2) A database (MongoDB)
+
+   You have TWO choices. Pick ONE:
+
+   CHOICE A - Install MongoDB on your computer (free)
+     Download from:
+       https://www.mongodb.com/try/download/community
+     Install with default options. It starts automatically.
+
+   CHOICE B - Use MongoDB Atlas (free, runs in the cloud) - EASIER
+     Go to:
+       https://www.mongodb.com/cloud/atlas/register
+     Sign up for a free account.
+     Create a "Free Shared" cluster (the one marked $0/month).
+     When it asks, create a database user - remember the password!
+     In "Network Access", allow access from anywhere (0.0.0.0/0).
+     Click "Connect" - "Connect your application" - and copy the
+     connection string. It looks like this:
+       mongodb+srv://username:password@cluster0.xxxxx.mongodb.net/
+     Keep this string - you will need it in Step 3.
+
+3) A text editor to open configuration files
+
+   Windows Notepad works fine.
+   Better options: Notepad++ (free), VS Code (free).
+
+
+--------------------------------------------------------------------
+ STEP 1 - INSTALL THE BACKEND
+--------------------------------------------------------------------
+
+Open a command window.
+
+On Windows:
+  Press the Windows key, type "cmd", press Enter.
+
+On Mac:
+  Press Cmd+Space, type "Terminal", press Enter.
+
+Go to the backend folder. Type this and press Enter:
+
+  cd path\to\backend-tailor-app
+
+Replace "path\to" with the actual folder location where you
+unzipped the app. A quick tip on Windows: you can type "cd " (with
+a space), then drag the folder into the window - the path gets
+pasted for you automatically.
+
+Now install the packages the server needs. Type:
+
+  npm install
+
+Wait 1-3 minutes. You will see some yellow warnings - that's
+normal, you can ignore them. When it finishes, you get the command
+prompt back.
+
+
+--------------------------------------------------------------------
+ STEP 2 - CREATE YOUR CONFIGURATION FILE
+--------------------------------------------------------------------
+
+Inside the backend-tailor-app folder, find the file called
+
+  .env.example
+
+You need to make a copy of it and name the copy
+
+  .env
+
+(just a dot and "env" - nothing after).
+
+In the same command window, type:
+
+  copy .env.example .env       (on Windows)
+  cp .env.example .env          (on Mac or Linux)
+
+
+--------------------------------------------------------------------
+ STEP 3 - FILL IN THE CONFIGURATION FILE
+--------------------------------------------------------------------
+
+Open the new ".env" file with your text editor.
+
+You will see a few lines with "=" signs, some empty and some
+with default values. Go through them one by one:
+
+
+ a) MONGO_URI
+    ------------
+    This tells the server where your database is.
+
+    If you installed MongoDB on your computer, use:
+      MONGO_URI=mongodb://127.0.0.1:27017/tailor_app_db
+
+    If you are using MongoDB Atlas, paste the connection string
+    they gave you, and add the database name at the end. Example:
+      MONGO_URI=mongodb+srv://user:pass@cluster0.xxxxx.mongodb.net/tailor_app_db
+
+
+ b) JWT_SECRET
+    -----------
+    A secret code that keeps logins safe. Make it long and
+    random. Do NOT use a simple word. Example:
+      JWT_SECRET=pX9kR2mLq7vN8yFzH4jB6wE1tA3oC5dQ0sU
+
+    Never share this with anyone. Never post it online.
+
+
+ c) ADMIN_EMAIL and ADMIN_PASSWORD
+    -------------------------------
+    These become your FIRST admin login. Pick an email you
+    will remember, and a strong password. Example:
+      ADMIN_EMAIL=owner@mytailorshop.com
+      ADMIN_PASSWORD=StrongPass2024!
+
+    You can change these later from inside the app.
+
+
+ d) FRONTEND_URL
+    -------------
+    The web address where the dashboard runs.
+
+    While setting up on your own computer, leave the default:
+      FRONTEND_URL=http://localhost:5173
+
+    When you put the app on a real website later, change it to
+    your domain, for example:
+      FRONTEND_URL=https://admin.mytailorshop.com
+
+
+ e) CLOUDINARY (for cloth photos) - OPTIONAL
+    -----------------------------------------
+    Leave these EMPTY if you don't want to use Cloudinary.
+    Photos will be saved on your own server instead.
+
+    If you DO want to use Cloudinary (free plan is enough):
+      Sign up at https://cloudinary.com
+      Copy your Cloud Name, API Key, and API Secret from your
+      dashboard into the file.
+
+
+ f) TWILIO (for WhatsApp / SMS to customers) - OPTIONAL
+    ----------------------------------------------------
+    Leave these EMPTY if you don't want automatic messages.
+    The app still works - you can copy the tracking link and
+    send it to customers yourself through WhatsApp.
+
+    If you DO want automatic messages:
+      Sign up at https://www.twilio.com (free trial available)
+      Follow their WhatsApp or SMS setup guide.
+      Copy the Account SID, Auth Token, and phone numbers.
+
+
+Save the file and close it.
+
+
+--------------------------------------------------------------------
+ THAT'S IT - YOU'RE DONE WITH SETUP
+--------------------------------------------------------------------
+
+The backend is ready. To actually start the server, open the file
+
+  HOW-TO-RUN.txt
+
+which is in the main app folder (one level above this one).
+
+
+--------------------------------------------------------------------
+ TROUBLESHOOTING
+--------------------------------------------------------------------
+
+Problem: "'npm' is not recognized"
+Fix:     Node.js is not installed yet, or your command window was
+         already open when you installed it. Install Node.js, then
+         close the command window and open a new one.
+
+Problem: "MongoDB connection error: ECONNREFUSED ::1:27017"
+Fix:     This is a Windows issue. In your .env file, change
+         "localhost" to "127.0.0.1" in the MONGO_URI line.
+
+Problem: "Invalid scheme" database error
+Fix:     Your MONGO_URI is missing the protocol. It MUST start
+         with "mongodb://" or "mongodb+srv://".
+
+Problem: "JWT_SECRET is not set. Refusing to start"
+Fix:     The JWT_SECRET line in your .env file is empty. Put a
+         long random string there.
+
+Problem: "npm install" fails with red errors
+Fix:     Check your Node.js version - type "node --version".
+         It must be 16.0.0 or higher. If not, install the latest
+         LTS from https://nodejs.org.
+
+Problem: The .env file doesn't show when I look in the folder
+Fix:     Windows hides files that start with a dot. Open the
+         folder in File Explorer, click "View" at the top, and
+         check the box for "Hidden items".
