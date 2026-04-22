@@ -104,3 +104,12 @@
 2026-04-17 17:49:43 [INFO]: MongoDB Connected: ac-zgpuoqm-shard-00-02.1uxlxlo.mongodb.net
 2026-04-17 17:54:29 [INFO]: Server running in development mode on port 5000
 2026-04-17 17:54:30 [INFO]: MongoDB Connected: ac-zgpuoqm-shard-00-02.1uxlxlo.mongodb.net
+2026-04-22 17:41:53 [INFO]: Server running in development mode on port 5000
+2026-04-22 17:42:23 [ERROR]: MongoDB connection error: connect ECONNREFUSED ::1:27017
+2026-04-22 17:44:13 [INFO]: Server running in development mode on port 5000
+2026-04-22 17:44:43 [ERROR]: MongoDB connection error: connect ECONNREFUSED ::1:27017
+2026-04-22 17:47:52 [INFO]: Server running in development mode on port 5000
+2026-04-22 17:47:52 [INFO]: MongoDB Connected: 127.0.0.1
+2026-04-22 17:47:52 [INFO]: Default admin created from ADMIN_EMAIL / ADMIN_PASSWORD.
+2026-04-22 20:39:17 [INFO]: Server running in development mode on port 5000
+2026-04-22 20:39:17 [INFO]: MongoDB Connected: 127.0.0.1
