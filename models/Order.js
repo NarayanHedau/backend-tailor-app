@@ -40,12 +40,13 @@ const itemSchema = new mongoose.Schema(
 
 const orderSchema = new mongoose.Schema(
   {
+    tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     customer_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Customer',
       required: true,
     },
-    order_number: { type: String, unique: true, index: true },
+    order_number: { type: String, index: true },
     tracking_id: { type: String, unique: true, index: true },
     order_date: { type: Date, default: Date.now },
     trial_date: { type: Date },
@@ -82,10 +83,13 @@ orderSchema.pre('save', function (next) {
   next();
 });
 
-// Generate order number
+// Per-tenant compound uniqueness for order_number
+orderSchema.index({ tenantId: 1, order_number: 1 }, { unique: true, sparse: true });
+
+// Generate order number (scoped per-tenant)
 orderSchema.pre('save', async function (next) {
   if (!this.order_number) {
-    const count = await this.constructor.countDocuments();
+    const count = await this.constructor.countDocuments({ tenantId: this.tenantId });
     this.order_number = `ORD-${String(count + 1).padStart(4, '0')}-${Date.now().toString().slice(-4)}`;
   }
   if (!this.tracking_id) {

@@ -1,1 +1,10 @@
 2026-04-17 16:20:19 [ERROR]: Unknown API key your_api_key - /api/orders/69e203b70b5c4aefe19a3155/items/69e203b70b5c4aefe19a3156/image - POST - ::1
+<<<<<<< Updated upstream
+=======
+2026-04-22 17:42:23 [ERROR]: MongoDB connection error: connect ECONNREFUSED ::1:27017
+2026-04-22 17:44:43 [ERROR]: MongoDB connection error: connect ECONNREFUSED ::1:27017
+2026-04-23 00:12:11 [ERROR]: Unknown API key your_api_key - /api/orders/69e916012032a461e853ec4f/items/69e916012032a461e853ec50/image - POST - ::1
+2026-04-23 16:42:52 [ERROR]: Unknown API key your_api_key - /api/orders/69e9fea37fb59f2b3f57a88e/items/69e9fea37fb59f2b3f57a88f/image - POST - ::1
+2026-04-23 16:43:55 [ERROR]: Unknown API key your_api_key - /api/orders/69e9fea37fb59f2b3f57a88e/items/69e9fea37fb59f2b3f57a88f/image - POST - ::1
+2026-04-23 16:50:04 [ERROR]: getaddrinfo ENOTFOUND ac-zgpuoqm-shard-00-00.1uxlxlo.mongodb.net - /api/track/1DE4422B - GET - ::1
+>>>>>>> Stashed changes

@@ -10,9 +10,9 @@ const {
   updateMeasurementProfile,
   deleteMeasurementProfile,
 } = require('../controllers/customerController');
-const { protect } = require('../middlewares/authMiddleware');
+const { protect, tenantScope } = require('../middlewares/authMiddleware');
 
-router.use(protect);
+router.use(protect, tenantScope);
 
 router.route('/').get(getCustomers).post(createCustomer);
 router.route('/:id').get(getCustomerById).put(updateCustomer).delete(deleteCustomer);

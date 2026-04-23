@@ -20,6 +20,7 @@ const supplierRoutes = require('./routes/supplierRoutes');
 const productRoutes = require('./routes/productRoutes');
 const purchaseRoutes = require('./routes/purchaseRoutes');
 const saleRoutes = require('./routes/saleRoutes');
+const tenantRoutes = require('./routes/tenantRoutes');
 
 const app = express();
 
@@ -45,6 +46,7 @@ app.use('/api/suppliers', supplierRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/purchases', purchaseRoutes);
 app.use('/api/sales', saleRoutes);
+app.use('/api/tenants', tenantRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

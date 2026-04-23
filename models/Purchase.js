@@ -14,7 +14,8 @@ const purchaseItemSchema = new mongoose.Schema(
 
 const purchaseSchema = new mongoose.Schema(
   {
-    bill_number: { type: String, unique: true },
+    tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    bill_number: { type: String },
     supplier_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Supplier', required: true },
     items: [purchaseItemSchema],
     subtotal: { type: Number, default: 0 },
@@ -39,10 +40,13 @@ const purchaseSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Auto-generate bill number
+// Per-tenant compound uniqueness for bill_number
+purchaseSchema.index({ tenantId: 1, bill_number: 1 }, { unique: true, sparse: true });
+
+// Auto-generate bill number (per-tenant sequence)
 purchaseSchema.pre('save', async function (next) {
   if (!this.bill_number) {
-    const count = await this.constructor.countDocuments();
+    const count = await this.constructor.countDocuments({ tenantId: this.tenantId });
     this.bill_number = `PUR-${String(count + 1).padStart(4, '0')}`;
   }
 

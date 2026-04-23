@@ -9,9 +9,10 @@ const connectDB = async () => {
     });
     logger.info(`MongoDB Connected: ${conn.connection.host}`);
 
-    // Seed default admin on first run
-    const { seedAdmin } = require('./seed');
+    // Seed default admin and superadmin on first run
+    const { seedAdmin, seedSuperadmin } = require('./seed');
     await seedAdmin();
+    await seedSuperadmin();
   } catch (error) {
     logger.error(`MongoDB connection error: ${error.message}`);
     throw error;

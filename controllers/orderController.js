@@ -15,14 +15,21 @@ const createOrder = async (req, res) => {
 
   const { customer_id, items, trial_date, delivery_date, notes } = req.body;
 
-  const customer = await Customer.findById(customer_id);
+  const customer = await Customer.findOne({ _id: customer_id, tenantId: req.tenantId });
   if (!customer) return res.status(404).json({ success: false, message: 'Customer not found' });
 
-  const order = await Order.create({ customer_id, items, trial_date, delivery_date, notes });
+  const order = await Order.create({
+    tenantId: req.tenantId,
+    customer_id,
+    items,
+    trial_date,
+    delivery_date,
+    notes,
+  });
 
   // Create associated invoice
   const totalAmount = items.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0);
-  await Invoice.create({ order_id: order._id, total_amount: totalAmount });
+  await Invoice.create({ tenantId: req.tenantId, order_id: order._id, total_amount: totalAmount });
 
   // Send tracking link via WhatsApp/SMS
   try {
@@ -41,7 +48,7 @@ const createOrder = async (req, res) => {
 // @access  Private
 const getOrders = async (req, res) => {
   const { status, search, page = 1, limit = 20, startDate, endDate } = req.query;
-  const query = {};
+  const query = { tenantId: req.tenantId };
 
   if (status) query.status = status;
   if (startDate || endDate) {
@@ -56,8 +63,9 @@ const getOrders = async (req, res) => {
     // Search by order number
     query.$or = [{ order_number: { $regex: search, $options: 'i' } }];
 
-    // Also search by customer phone
+    // Also search by customer phone (within this tenant)
     const customers = await Customer.find({
+      tenantId: req.tenantId,
       $or: [
         { phone: { $regex: search, $options: 'i' } },
         { name: { $regex: search, $options: 'i' } },
@@ -79,7 +87,7 @@ const getOrders = async (req, res) => {
 
   // Attach invoice info
   const orderIds = orders.map((o) => o._id);
-  const invoices = await Invoice.find({ order_id: { $in: orderIds } }).lean();
+  const invoices = await Invoice.find({ tenantId: req.tenantId, order_id: { $in: orderIds } }).lean();
   const invoiceMap = {};
   invoices.forEach((inv) => { invoiceMap[inv.order_id.toString()] = inv; });
   orders = orders.map((o) => ({ ...o, invoice: invoiceMap[o._id.toString()] || null }));
@@ -95,12 +103,12 @@ const getOrders = async (req, res) => {
 // @route   GET /api/orders/:id
 // @access  Private
 const getOrderById = async (req, res) => {
-  const order = await Order.findById(req.params.id)
+  const order = await Order.findOne({ _id: req.params.id, tenantId: req.tenantId })
     .populate('customer_id', 'name phone email address')
     .lean();
   if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
-  const invoice = await Invoice.findOne({ order_id: order._id }).lean();
+  const invoice = await Invoice.findOne({ tenantId: req.tenantId, order_id: order._id }).lean();
   res.json({ success: true, data: { ...order, invoice } });
 };
 
@@ -108,7 +116,7 @@ const getOrderById = async (req, res) => {
 // @route   PUT /api/orders/:id
 // @access  Private
 const updateOrder = async (req, res) => {
-  const order = await Order.findById(req.params.id);
+  const order = await Order.findOne({ _id: req.params.id, tenantId: req.tenantId });
   if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
   const { trial_date, delivery_date, notes, status } = req.body;
@@ -128,7 +136,7 @@ const updateItemStatus = async (req, res) => {
   const { error } = itemStatusSchema.validate(req.body);
   if (error) return res.status(400).json({ success: false, message: error.details[0].message });
 
-  const order = await Order.findById(req.params.orderId);
+  const order = await Order.findOne({ _id: req.params.orderId, tenantId: req.tenantId });
   if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
   const item = order.items.id(req.params.itemId);
@@ -144,7 +152,7 @@ const updateItemStatus = async (req, res) => {
 // @route   POST /api/orders/:orderId/items/:itemId/image
 // @access  Private
 const uploadItemImage = async (req, res) => {
-  const order = await Order.findById(req.params.orderId);
+  const order = await Order.findOne({ _id: req.params.orderId, tenantId: req.tenantId });
   if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
   const item = order.items.id(req.params.itemId);
@@ -169,7 +177,7 @@ const uploadItemImage = async (req, res) => {
 // @route   PUT /api/orders/:orderId/items/:itemId/measurements
 // @access  Private
 const updateMeasurements = async (req, res) => {
-  const order = await Order.findById(req.params.orderId);
+  const order = await Order.findOne({ _id: req.params.orderId, tenantId: req.tenantId });
   if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
   const item = order.items.id(req.params.itemId);
@@ -184,15 +192,17 @@ const updateMeasurements = async (req, res) => {
 // @route   GET /api/orders/stats
 // @access  Private
 const getDashboardStats = async (req, res) => {
+  const scope = { tenantId: req.tenantId };
   const [total, pending, inProgress, completed, delivered] = await Promise.all([
-    Order.countDocuments(),
-    Order.countDocuments({ status: 'PENDING' }),
-    Order.countDocuments({ status: 'IN_PROGRESS' }),
-    Order.countDocuments({ status: 'COMPLETED' }),
-    Order.countDocuments({ status: 'DELIVERED' }),
+    Order.countDocuments(scope),
+    Order.countDocuments({ ...scope, status: 'PENDING' }),
+    Order.countDocuments({ ...scope, status: 'IN_PROGRESS' }),
+    Order.countDocuments({ ...scope, status: 'COMPLETED' }),
+    Order.countDocuments({ ...scope, status: 'DELIVERED' }),
   ]);
 
   const revenueData = await Invoice.aggregate([
+    { $match: { tenantId: req.tenantId } },
     {
       $group: {
         _id: null,
@@ -206,7 +216,7 @@ const getDashboardStats = async (req, res) => {
   const revenue = revenueData[0] || { totalRevenue: 0, totalCollected: 0, totalPending: 0 };
 
   // Recent orders
-  const recentOrders = await Order.find()
+  const recentOrders = await Order.find(scope)
     .populate('customer_id', 'name phone')
     .sort({ createdAt: -1 })
     .limit(5)
@@ -231,6 +241,7 @@ const getDeadlines = async (req, res) => {
 
   // Overdue orders: delivery_date passed but not delivered/cancelled
   const overdue = await Order.find({
+    tenantId: req.tenantId,
     delivery_date: { $lt: now },
     status: { $in: activeStatuses },
   })
@@ -241,6 +252,7 @@ const getDeadlines = async (req, res) => {
   // Upcoming trials in the next 14 days
   const in14Days = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
   const upcomingTrials = await Order.find({
+    tenantId: req.tenantId,
     trial_date: { $gte: now, $lte: in14Days },
     status: { $in: activeStatuses },
   })
@@ -250,6 +262,7 @@ const getDeadlines = async (req, res) => {
 
   // Upcoming deliveries in the next 14 days
   const upcomingDeliveries = await Order.find({
+    tenantId: req.tenantId,
     delivery_date: { $gte: now, $lte: in14Days },
     status: { $in: activeStatuses },
   })
@@ -261,6 +274,7 @@ const getDeadlines = async (req, res) => {
   const startOfRange = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const endOfRange = new Date(now.getFullYear(), now.getMonth() + 2, 0);
   const calendarOrders = await Order.find({
+    tenantId: req.tenantId,
     status: { $in: activeStatuses },
     $or: [
       { trial_date: { $gte: startOfRange, $lte: endOfRange } },
@@ -327,7 +341,7 @@ const getChartData = async (req, res) => {
     cancelled: { $sum: { $cond: [{ $eq: ['$status', 'CANCELLED'] }, 1, 0] } },
   };
 
-  const matchStage = { $match: { createdAt: { $gte: start, $lte: end } } };
+  const matchStage = { $match: { tenantId: req.tenantId, createdAt: { $gte: start, $lte: end } } };
 
   const [ordersAgg, revenueAgg] = await Promise.all([
     Order.aggregate([
@@ -410,10 +424,10 @@ const getChartData = async (req, res) => {
 // @route   DELETE /api/orders/:id
 // @access  Private
 const deleteOrder = async (req, res) => {
-  const order = await Order.findById(req.params.id);
+  const order = await Order.findOne({ _id: req.params.id, tenantId: req.tenantId });
   if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
-  await Invoice.findOneAndDelete({ order_id: order._id });
+  await Invoice.findOneAndDelete({ tenantId: req.tenantId, order_id: order._id });
   await order.deleteOne();
   res.json({ success: true, message: 'Order deleted' });
 };

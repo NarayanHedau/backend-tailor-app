@@ -13,10 +13,10 @@ const {
   getChartData,
   deleteOrder,
 } = require('../controllers/orderController');
-const { protect } = require('../middlewares/authMiddleware');
+const { protect, tenantScope } = require('../middlewares/authMiddleware');
 const { upload } = require('../middlewares/uploadMiddleware');
 
-router.use(protect);
+router.use(protect, tenantScope);
 
 router.get('/stats', getDashboardStats);
 router.get('/deadlines', getDeadlines);

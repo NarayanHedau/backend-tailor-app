@@ -4,13 +4,13 @@ const createProduct = async (req, res) => {
   const { name } = req.body;
   if (!name) return res.status(400).json({ success: false, message: 'Product name is required' });
 
-  const product = await Product.create(req.body);
+  const product = await Product.create({ ...req.body, tenantId: req.tenantId });
   res.status(201).json({ success: true, message: 'Product created', data: product });
 };
 
 const getProducts = async (req, res) => {
   const { search, category, page = 1, limit = 50, lowStock } = req.query;
-  const query = {};
+  const query = { tenantId: req.tenantId };
 
   if (search) query.name = { $regex: search, $options: 'i' };
   if (category) query.category = category;
@@ -23,19 +23,23 @@ const getProducts = async (req, res) => {
 };
 
 const getProductById = async (req, res) => {
-  const product = await Product.findById(req.params.id).lean();
+  const product = await Product.findOne({ _id: req.params.id, tenantId: req.tenantId }).lean();
   if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
   res.json({ success: true, data: product });
 };
 
 const updateProduct = async (req, res) => {
-  const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+  const product = await Product.findOneAndUpdate(
+    { _id: req.params.id, tenantId: req.tenantId },
+    req.body,
+    { new: true, runValidators: true }
+  );
   if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
   res.json({ success: true, message: 'Product updated', data: product });
 };
 
 const deleteProduct = async (req, res) => {
-  const product = await Product.findByIdAndDelete(req.params.id);
+  const product = await Product.findOneAndDelete({ _id: req.params.id, tenantId: req.tenantId });
   if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
   res.json({ success: true, message: 'Product deleted' });
 };

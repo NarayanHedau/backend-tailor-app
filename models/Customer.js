@@ -19,14 +19,18 @@ const measurementProfileSchema = new mongoose.Schema(
 
 const customerSchema = new mongoose.Schema(
   {
+    tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     name: { type: String, required: true, trim: true },
-    phone: { type: String, required: true, trim: true, unique: true, index: true },
+    phone: { type: String, required: true, trim: true },
     email: { type: String, trim: true, lowercase: true, default: '' },
     address: { type: String, trim: true, default: '' },
     measurement_profiles: [measurementProfileSchema],
   },
   { timestamps: true }
 );
+
+// phone is unique per tenant, not globally
+customerSchema.index({ tenantId: 1, phone: 1 }, { unique: true });
 
 // Full-text search index
 customerSchema.index({ name: 'text', phone: 'text' });

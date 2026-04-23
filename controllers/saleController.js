@@ -7,20 +7,23 @@ const createSale = async (req, res) => {
     return res.status(400).json({ success: false, message: 'Customer name and at least one item are required' });
   }
 
-  // Check stock availability
+  // Check stock availability (scoped to this tenant)
   for (const item of items) {
-    const product = await Product.findById(item.product_id);
+    const product = await Product.findOne({ _id: item.product_id, tenantId: req.tenantId });
     if (!product) return res.status(404).json({ success: false, message: `Product not found: ${item.product_name}` });
     if (product.stock_quantity < item.quantity) {
       return res.status(400).json({ success: false, message: `Insufficient stock for "${product.name}". Available: ${product.stock_quantity} ${product.unit}` });
     }
   }
 
-  const sale = await Sale.create(req.body);
+  const sale = await Sale.create({ ...req.body, tenantId: req.tenantId });
 
-  // Decrease product stock
+  // Decrease product stock (scoped)
   for (const item of sale.items) {
-    await Product.findByIdAndUpdate(item.product_id, { $inc: { stock_quantity: -item.quantity } });
+    await Product.findOneAndUpdate(
+      { _id: item.product_id, tenantId: req.tenantId },
+      { $inc: { stock_quantity: -item.quantity } }
+    );
   }
 
   res.status(201).json({ success: true, message: 'Sale recorded', data: sale });
@@ -28,7 +31,7 @@ const createSale = async (req, res) => {
 
 const getSales = async (req, res) => {
   const { search, sale_type, payment_status, page = 1, limit = 20, startDate, endDate } = req.query;
-  const query = {};
+  const query = { tenantId: req.tenantId };
 
   if (sale_type) query.sale_type = sale_type;
   if (payment_status) query.payment_status = payment_status;
@@ -56,7 +59,7 @@ const getSales = async (req, res) => {
 };
 
 const getSaleById = async (req, res) => {
-  const sale = await Sale.findById(req.params.id).lean();
+  const sale = await Sale.findOne({ _id: req.params.id, tenantId: req.tenantId }).lean();
   if (!sale) return res.status(404).json({ success: false, message: 'Sale not found' });
   res.json({ success: true, data: sale });
 };
@@ -65,7 +68,7 @@ const recordPayment = async (req, res) => {
   const { amount, method } = req.body;
   if (!amount || amount <= 0) return res.status(400).json({ success: false, message: 'Valid amount is required' });
 
-  const sale = await Sale.findById(req.params.id);
+  const sale = await Sale.findOne({ _id: req.params.id, tenantId: req.tenantId });
   if (!sale) return res.status(404).json({ success: false, message: 'Sale not found' });
 
   sale.amount_paid += amount;
@@ -76,12 +79,15 @@ const recordPayment = async (req, res) => {
 };
 
 const deleteSale = async (req, res) => {
-  const sale = await Sale.findById(req.params.id);
+  const sale = await Sale.findOne({ _id: req.params.id, tenantId: req.tenantId });
   if (!sale) return res.status(404).json({ success: false, message: 'Sale not found' });
 
-  // Restore stock
+  // Restore stock (scoped)
   for (const item of sale.items) {
-    await Product.findByIdAndUpdate(item.product_id, { $inc: { stock_quantity: item.quantity } });
+    await Product.findOneAndUpdate(
+      { _id: item.product_id, tenantId: req.tenantId },
+      { $inc: { stock_quantity: item.quantity } }
+    );
   }
 
   await sale.deleteOne();
@@ -90,6 +96,7 @@ const deleteSale = async (req, res) => {
 
 const getSaleStats = async (req, res) => {
   const stats = await Sale.aggregate([
+    { $match: { tenantId: req.tenantId } },
     {
       $group: {
         _id: null,

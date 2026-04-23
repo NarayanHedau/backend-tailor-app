@@ -11,10 +11,10 @@ const createInvoice = async (req, res) => {
 
   const { order_id, total_amount, advance_paid, discount } = req.body;
 
-  const order = await Order.findById(order_id);
+  const order = await Order.findOne({ _id: order_id, tenantId: req.tenantId });
   if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
-  let invoice = await Invoice.findOne({ order_id });
+  let invoice = await Invoice.findOne({ tenantId: req.tenantId, order_id });
 
   if (invoice) {
     invoice.total_amount = total_amount;
@@ -24,7 +24,13 @@ const createInvoice = async (req, res) => {
     return res.json({ success: true, message: 'Invoice updated', data: invoice });
   }
 
-  invoice = await Invoice.create({ order_id, total_amount, advance_paid: advance_paid || 0, discount: discount || 0 });
+  invoice = await Invoice.create({
+    tenantId: req.tenantId,
+    order_id,
+    total_amount,
+    advance_paid: advance_paid || 0,
+    discount: discount || 0,
+  });
   res.status(201).json({ success: true, message: 'Invoice created', data: invoice });
 };
 
@@ -32,7 +38,7 @@ const createInvoice = async (req, res) => {
 // @route   GET /api/invoices/order/:orderId
 // @access  Private
 const getInvoiceByOrder = async (req, res) => {
-  const invoice = await Invoice.findOne({ order_id: req.params.orderId })
+  const invoice = await Invoice.findOne({ tenantId: req.tenantId, order_id: req.params.orderId })
     .populate({
       path: 'order_id',
       populate: { path: 'customer_id', select: 'name phone email' },
@@ -50,7 +56,7 @@ const recordPayment = async (req, res) => {
   const { error } = paymentSchema.validate(req.body);
   if (error) return res.status(400).json({ success: false, message: error.details[0].message });
 
-  const invoice = await Invoice.findById(req.params.id);
+  const invoice = await Invoice.findOne({ _id: req.params.id, tenantId: req.tenantId });
   if (!invoice) return res.status(404).json({ success: false, message: 'Invoice not found' });
 
   const { amount, note, method } = req.body;
@@ -71,7 +77,7 @@ const recordPayment = async (req, res) => {
 // @access  Private
 const getAllInvoices = async (req, res) => {
   const { payment_status, page = 1, limit = 20 } = req.query;
-  const query = {};
+  const query = { tenantId: req.tenantId };
   if (payment_status) query.payment_status = payment_status;
 
   const total = await Invoice.countDocuments(query);

@@ -14,7 +14,8 @@ const saleItemSchema = new mongoose.Schema(
 
 const saleSchema = new mongoose.Schema(
   {
-    bill_number: { type: String, unique: true },
+    tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    bill_number: { type: String },
     customer_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
     customer_name: { type: String, required: true },
     customer_phone: { type: String, default: '' },
@@ -46,10 +47,13 @@ const saleSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Auto-generate bill number
+// Per-tenant compound uniqueness for bill_number
+saleSchema.index({ tenantId: 1, bill_number: 1 }, { unique: true, sparse: true });
+
+// Auto-generate bill number (per-tenant sequence)
 saleSchema.pre('save', async function (next) {
   if (!this.bill_number) {
-    const count = await this.constructor.countDocuments();
+    const count = await this.constructor.countDocuments({ tenantId: this.tenantId });
     this.bill_number = `SALE-${String(count + 1).padStart(4, '0')}`;
   }
 

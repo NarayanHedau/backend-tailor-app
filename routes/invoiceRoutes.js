@@ -6,9 +6,9 @@ const {
   recordPayment,
   getAllInvoices,
 } = require('../controllers/invoiceController');
-const { protect } = require('../middlewares/authMiddleware');
+const { protect, tenantScope } = require('../middlewares/authMiddleware');
 
-router.use(protect);
+router.use(protect, tenantScope);
 
 router.route('/').get(getAllInvoices).post(createInvoice);
 router.get('/order/:orderId', getInvoiceByOrder);

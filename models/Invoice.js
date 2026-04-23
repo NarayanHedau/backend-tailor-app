@@ -2,13 +2,14 @@ const mongoose = require('mongoose');
 
 const invoiceSchema = new mongoose.Schema(
   {
+    tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     order_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Order',
       required: true,
       unique: true,
     },
-    invoice_number: { type: String, unique: true },
+    invoice_number: { type: String },
     total_amount: { type: Number, required: true, default: 0 },
     advance_paid: { type: Number, default: 0 },
     pending_amount: { type: Number, default: 0 },
@@ -39,10 +40,13 @@ invoiceSchema.pre('save', function (next) {
   next();
 });
 
-// Generate invoice number
+// Per-tenant compound uniqueness for invoice_number
+invoiceSchema.index({ tenantId: 1, invoice_number: 1 }, { unique: true, sparse: true });
+
+// Generate invoice number (scoped per-tenant)
 invoiceSchema.pre('save', async function (next) {
   if (!this.invoice_number) {
-    const count = await this.constructor.countDocuments();
+    const count = await this.constructor.countDocuments({ tenantId: this.tenantId });
     this.invoice_number = `INV-${String(count + 1).padStart(4, '0')}-${new Date().getFullYear()}`;
   }
   next();

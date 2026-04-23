@@ -8,16 +8,17 @@ const createPurchase = async (req, res) => {
     return res.status(400).json({ success: false, message: 'Supplier and at least one item are required' });
   }
 
-  const supplier = await Supplier.findById(supplier_id);
+  const supplier = await Supplier.findOne({ _id: supplier_id, tenantId: req.tenantId });
   if (!supplier) return res.status(404).json({ success: false, message: 'Supplier not found' });
 
-  const purchase = await Purchase.create(req.body);
+  const purchase = await Purchase.create({ ...req.body, tenantId: req.tenantId });
 
-  // Update product stock (increase)
+  // Update product stock (increase) — scoped to this tenant
   for (const item of purchase.items) {
-    await Product.findByIdAndUpdate(item.product_id, {
-      $inc: { stock_quantity: item.quantity },
-    });
+    await Product.findOneAndUpdate(
+      { _id: item.product_id, tenantId: req.tenantId },
+      { $inc: { stock_quantity: item.quantity } }
+    );
   }
 
   const populated = await Purchase.findById(purchase._id).populate('supplier_id', 'name phone company').lean();
@@ -26,7 +27,7 @@ const createPurchase = async (req, res) => {
 
 const getPurchases = async (req, res) => {
   const { search, payment_status, page = 1, limit = 20, startDate, endDate } = req.query;
-  const query = {};
+  const query = { tenantId: req.tenantId };
 
   if (payment_status) query.payment_status = payment_status;
   if (startDate || endDate) {
@@ -38,7 +39,7 @@ const getPurchases = async (req, res) => {
     query.$or = [
       { bill_number: { $regex: search, $options: 'i' } },
     ];
-    const suppliers = await Supplier.find({ name: { $regex: search, $options: 'i' } }).select('_id');
+    const suppliers = await Supplier.find({ tenantId: req.tenantId, name: { $regex: search, $options: 'i' } }).select('_id');
     if (suppliers.length > 0) query.$or.push({ supplier_id: { $in: suppliers.map((s) => s._id) } });
   }
 
@@ -54,7 +55,7 @@ const getPurchases = async (req, res) => {
 };
 
 const getPurchaseById = async (req, res) => {
-  const purchase = await Purchase.findById(req.params.id).populate('supplier_id').lean();
+  const purchase = await Purchase.findOne({ _id: req.params.id, tenantId: req.tenantId }).populate('supplier_id').lean();
   if (!purchase) return res.status(404).json({ success: false, message: 'Purchase not found' });
   res.json({ success: true, data: purchase });
 };
@@ -63,7 +64,7 @@ const recordPayment = async (req, res) => {
   const { amount, method } = req.body;
   if (!amount || amount <= 0) return res.status(400).json({ success: false, message: 'Valid amount is required' });
 
-  const purchase = await Purchase.findById(req.params.id);
+  const purchase = await Purchase.findOne({ _id: req.params.id, tenantId: req.tenantId });
   if (!purchase) return res.status(404).json({ success: false, message: 'Purchase not found' });
 
   purchase.amount_paid += amount;
@@ -74,12 +75,15 @@ const recordPayment = async (req, res) => {
 };
 
 const deletePurchase = async (req, res) => {
-  const purchase = await Purchase.findById(req.params.id);
+  const purchase = await Purchase.findOne({ _id: req.params.id, tenantId: req.tenantId });
   if (!purchase) return res.status(404).json({ success: false, message: 'Purchase not found' });
 
-  // Revert stock
+  // Revert stock (scoped to this tenant)
   for (const item of purchase.items) {
-    await Product.findByIdAndUpdate(item.product_id, { $inc: { stock_quantity: -item.quantity } });
+    await Product.findOneAndUpdate(
+      { _id: item.product_id, tenantId: req.tenantId },
+      { $inc: { stock_quantity: -item.quantity } }
+    );
   }
 
   await purchase.deleteOne();
@@ -89,6 +93,7 @@ const deletePurchase = async (req, res) => {
 // Business overview stats
 const getPurchaseStats = async (req, res) => {
   const stats = await Purchase.aggregate([
+    { $match: { tenantId: req.tenantId } },
     {
       $group: {
         _id: null,
@@ -132,7 +137,7 @@ const getBusinessChartData = async (req, res) => {
     groupId = { year: { $year: '$createdAt' } };
   }
 
-  const matchStage = { $match: { createdAt: { $gte: start, $lte: end } } };
+  const matchStage = { $match: { tenantId: req.tenantId, createdAt: { $gte: start, $lte: end } } };
 
   const [purchaseAgg, saleAgg] = await Promise.all([
     Purchase.aggregate([

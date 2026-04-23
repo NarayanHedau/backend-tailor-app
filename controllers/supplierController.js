@@ -5,16 +5,16 @@ const createSupplier = async (req, res) => {
   const { name, phone } = req.body;
   if (!name || !phone) return res.status(400).json({ success: false, message: 'Name and phone are required' });
 
-  const existing = await Supplier.findOne({ phone: phone.trim() });
+  const existing = await Supplier.findOne({ tenantId: req.tenantId, phone: phone.trim() });
   if (existing) return res.status(409).json({ success: false, message: 'Supplier with this phone already exists', existingSupplier: existing });
 
-  const supplier = await Supplier.create(req.body);
+  const supplier = await Supplier.create({ ...req.body, tenantId: req.tenantId });
   res.status(201).json({ success: true, message: 'Supplier created', data: supplier });
 };
 
 const getSuppliers = async (req, res) => {
   const { search, page = 1, limit = 20 } = req.query;
-  const query = {};
+  const query = { tenantId: req.tenantId };
 
   if (search) {
     query.$or = [
@@ -30,7 +30,7 @@ const getSuppliers = async (req, res) => {
   // Attach purchase stats
   const supplierIds = suppliers.map((s) => s._id);
   const purchaseStats = await Purchase.aggregate([
-    { $match: { supplier_id: { $in: supplierIds } } },
+    { $match: { tenantId: req.tenantId, supplier_id: { $in: supplierIds } } },
     { $group: { _id: '$supplier_id', totalPurchases: { $sum: 1 }, totalAmount: { $sum: '$total_amount' }, totalPaid: { $sum: '$amount_paid' } } },
   ]);
   const statsMap = {};
@@ -48,10 +48,10 @@ const getSuppliers = async (req, res) => {
 };
 
 const getSupplierById = async (req, res) => {
-  const supplier = await Supplier.findById(req.params.id).lean();
+  const supplier = await Supplier.findOne({ _id: req.params.id, tenantId: req.tenantId }).lean();
   if (!supplier) return res.status(404).json({ success: false, message: 'Supplier not found' });
 
-  const purchases = await Purchase.find({ supplier_id: req.params.id }).sort({ createdAt: -1 }).lean();
+  const purchases = await Purchase.find({ tenantId: req.tenantId, supplier_id: req.params.id }).sort({ createdAt: -1 }).lean();
   const totalAmount = purchases.reduce((s, p) => s + p.total_amount, 0);
   const totalPaid = purchases.reduce((s, p) => s + p.amount_paid, 0);
 
@@ -59,13 +59,17 @@ const getSupplierById = async (req, res) => {
 };
 
 const updateSupplier = async (req, res) => {
-  const supplier = await Supplier.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+  const supplier = await Supplier.findOneAndUpdate(
+    { _id: req.params.id, tenantId: req.tenantId },
+    req.body,
+    { new: true, runValidators: true }
+  );
   if (!supplier) return res.status(404).json({ success: false, message: 'Supplier not found' });
   res.json({ success: true, message: 'Supplier updated', data: supplier });
 };
 
 const deleteSupplier = async (req, res) => {
-  const supplier = await Supplier.findByIdAndDelete(req.params.id);
+  const supplier = await Supplier.findOneAndDelete({ _id: req.params.id, tenantId: req.tenantId });
   if (!supplier) return res.status(404).json({ success: false, message: 'Supplier not found' });
   res.json({ success: true, message: 'Supplier deleted' });
 };

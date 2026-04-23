@@ -10,8 +10,8 @@ const createCustomer = async (req, res) => {
   const { error } = customerSchema.validate(req.body);
   if (error) return res.status(400).json({ success: false, message: error.details[0].message });
 
-  // Check if customer with same phone already exists
-  const existing = await Customer.findOne({ phone: req.body.phone.trim() });
+  // Check if customer with same phone already exists (within this tenant)
+  const existing = await Customer.findOne({ tenantId: req.tenantId, phone: req.body.phone.trim() });
   if (existing) {
     return res.status(409).json({
       success: false,
@@ -20,7 +20,7 @@ const createCustomer = async (req, res) => {
     });
   }
 
-  const customer = await Customer.create(req.body);
+  const customer = await Customer.create({ ...req.body, tenantId: req.tenantId });
   res.status(201).json({ success: true, message: 'Customer created', data: customer });
 };
 
@@ -29,7 +29,7 @@ const createCustomer = async (req, res) => {
 // @access  Private
 const getCustomers = async (req, res) => {
   const { search, page = 1, limit = 20 } = req.query;
-  const query = {};
+  const query = { tenantId: req.tenantId };
 
   if (search) {
     query.$or = [
@@ -48,7 +48,7 @@ const getCustomers = async (req, res) => {
   // Attach order count and total spend for each customer
   const customerIds = customers.map((c) => c._id);
   const orderStats = await Order.aggregate([
-    { $match: { customer_id: { $in: customerIds } } },
+    { $match: { tenantId: req.tenantId, customer_id: { $in: customerIds } } },
     {
       $group: {
         _id: '$customer_id',
@@ -77,17 +77,17 @@ const getCustomers = async (req, res) => {
 // @route   GET /api/customers/:id
 // @access  Private
 const getCustomerById = async (req, res) => {
-  const customer = await Customer.findById(req.params.id).lean();
+  const customer = await Customer.findOne({ _id: req.params.id, tenantId: req.tenantId }).lean();
   if (!customer) return res.status(404).json({ success: false, message: 'Customer not found' });
 
   // Fetch order history for this customer
-  const orders = await Order.find({ customer_id: req.params.id })
+  const orders = await Order.find({ tenantId: req.tenantId, customer_id: req.params.id })
     .sort({ createdAt: -1 })
     .lean();
 
   // Fetch invoices for those orders
   const orderIds = orders.map((o) => o._id);
-  const invoices = await Invoice.find({ order_id: { $in: orderIds } }).lean();
+  const invoices = await Invoice.find({ tenantId: req.tenantId, order_id: { $in: orderIds } }).lean();
   const invoiceMap = {};
   invoices.forEach((inv) => { invoiceMap[inv.order_id.toString()] = inv; });
 
@@ -119,10 +119,11 @@ const getCustomerById = async (req, res) => {
 // @route   PUT /api/customers/:id
 // @access  Private
 const updateCustomer = async (req, res) => {
-  const customer = await Customer.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  });
+  const customer = await Customer.findOneAndUpdate(
+    { _id: req.params.id, tenantId: req.tenantId },
+    req.body,
+    { new: true, runValidators: true }
+  );
   if (!customer) return res.status(404).json({ success: false, message: 'Customer not found' });
   res.json({ success: true, message: 'Customer updated', data: customer });
 };
@@ -131,7 +132,7 @@ const updateCustomer = async (req, res) => {
 // @route   DELETE /api/customers/:id
 // @access  Private
 const deleteCustomer = async (req, res) => {
-  const customer = await Customer.findByIdAndDelete(req.params.id);
+  const customer = await Customer.findOneAndDelete({ _id: req.params.id, tenantId: req.tenantId });
   if (!customer) return res.status(404).json({ success: false, message: 'Customer not found' });
   res.json({ success: true, message: 'Customer deleted' });
 };
@@ -145,7 +146,7 @@ const addMeasurementProfile = async (req, res) => {
   const { error } = measurementProfileSchema.validate(req.body);
   if (error) return res.status(400).json({ success: false, message: error.details[0].message });
 
-  const customer = await Customer.findById(req.params.id);
+  const customer = await Customer.findOne({ _id: req.params.id, tenantId: req.tenantId });
   if (!customer) return res.status(404).json({ success: false, message: 'Customer not found' });
 
   customer.measurement_profiles.push(req.body);
@@ -159,7 +160,7 @@ const addMeasurementProfile = async (req, res) => {
 // @route   PUT /api/customers/:id/measurements/:profileId
 // @access  Private
 const updateMeasurementProfile = async (req, res) => {
-  const customer = await Customer.findById(req.params.id);
+  const customer = await Customer.findOne({ _id: req.params.id, tenantId: req.tenantId });
   if (!customer) return res.status(404).json({ success: false, message: 'Customer not found' });
 
   const profile = customer.measurement_profiles.id(req.params.profileId);
@@ -175,7 +176,7 @@ const updateMeasurementProfile = async (req, res) => {
 // @route   DELETE /api/customers/:id/measurements/:profileId
 // @access  Private
 const deleteMeasurementProfile = async (req, res) => {
-  const customer = await Customer.findById(req.params.id);
+  const customer = await Customer.findOne({ _id: req.params.id, tenantId: req.tenantId });
   if (!customer) return res.status(404).json({ success: false, message: 'Customer not found' });
 
   const profile = customer.measurement_profiles.id(req.params.profileId);
