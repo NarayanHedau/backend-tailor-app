@@ -22,6 +22,7 @@
     "multer-storage-cloudinary": "^4.0.0",
     "shortid": "^2.2.16",
     "streamifier": "^0.1.1",
+    "twilio": "^4.23.0",
     "winston": "^3.11.0"
   },
   "devDependencies": {
