@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const User = require('../models/User');
+const MessageLog = require('../models/MessageLog');
 
 // Generate a readable 12-char password: 8 random base64 chars + "A1!" suffix
 // (bcrypt 10 rounds + min 6 enforced by schema).
@@ -16,6 +17,9 @@ const toTenantView = (user) => ({
   phone: user.phone || '',
   role: user.role,
   isActive: user.isActive,
+  whatsappQuota: user.whatsappQuota ?? 0,
+  whatsappUsed: user.whatsappUsed ?? 0,
+  whatsappQuotaResetAt: user.whatsappQuotaResetAt,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
 });
@@ -40,6 +44,7 @@ const createTenant = async (req, res) => {
 
   const plainPassword = password && String(password).length >= 6 ? String(password) : generatePassword();
 
+  const { whatsappQuota } = req.body || {};
   const tenant = await User.create({
     name: String(name).trim(),
     email: normalizedEmail,
@@ -49,6 +54,7 @@ const createTenant = async (req, res) => {
     role: 'tailor',
     isActive: true,
     createdBy: req.user?._id,
+    ...(Number.isFinite(Number(whatsappQuota)) ? { whatsappQuota: Number(whatsappQuota) } : {}),
   });
 
   // Return the generated password ONCE so the superadmin can share it with
@@ -112,6 +118,11 @@ const updateTenant = async (req, res) => {
   if (phone !== undefined) tenant.phone = String(phone).trim();
   if (typeof isActive === 'boolean') tenant.isActive = isActive;
 
+  const { whatsappQuota } = req.body || {};
+  if (whatsappQuota !== undefined && Number.isFinite(Number(whatsappQuota))) {
+    tenant.whatsappQuota = Number(whatsappQuota);
+  }
+
   let passwordChanged = false;
   if (password && String(password).length >= 6) {
     tenant.password = String(password);
@@ -164,6 +175,72 @@ const resetTenantPassword = async (req, res) => {
   });
 };
 
+// @desc    Get WhatsApp/SMS usage for a tenant
+// @route   GET /api/tenants/:id/messaging-usage
+const getTenantMessagingUsage = async (req, res) => {
+  const tenant = await User.findOne({ _id: req.params.id, role: 'tailor' });
+  if (!tenant) {
+    return res.status(404).json({ success: false, message: 'Tailor tenant not found' });
+  }
+
+  const { from, to, limit = 50 } = req.query;
+  const match = { tenantId: tenant._id };
+  if (from || to) {
+    match.sentAt = {};
+    if (from) match.sentAt.$gte = new Date(from);
+    if (to) match.sentAt.$lte = new Date(to);
+  }
+
+  const [counts, recent] = await Promise.all([
+    MessageLog.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: { channel: '$channel', status: '$status' },
+          count: { $sum: 1 },
+        },
+      },
+    ]),
+    MessageLog.find(match).sort({ sentAt: -1 }).limit(Number(limit)).lean(),
+  ]);
+
+  // Flatten counts into a 2-level object: { whatsapp: { sent: 12, failed: 1 }, sms: {...} }
+  const summary = {};
+  counts.forEach(({ _id, count }) => {
+    summary[_id.channel] = summary[_id.channel] || {};
+    summary[_id.channel][_id.status] = count;
+  });
+
+  res.json({
+    success: true,
+    data: {
+      tenant: toTenantView(tenant),
+      summary,
+      recent,
+    },
+  });
+};
+
+// @desc    Reset a tenant's monthly counter (manual override)
+// @route   POST /api/tenants/:id/reset-whatsapp-usage
+const resetTenantWhatsAppUsage = async (req, res) => {
+  const tenant = await User.findOne({ _id: req.params.id, role: 'tailor' });
+  if (!tenant) {
+    return res.status(404).json({ success: false, message: 'Tailor tenant not found' });
+  }
+
+  const now = new Date();
+  tenant.whatsappUsed = 0;
+  tenant.whatsappQuotaResetAt = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  await tenant.save();
+
+  res.json({
+    success: true,
+    message: 'WhatsApp usage counter reset',
+    data: toTenantView(tenant),
+  });
+};
+
 // @desc    Delete a tailor tenant
 // @route   DELETE /api/tenants/:id
 const deleteTenant = async (req, res) => {
@@ -181,5 +258,7 @@ module.exports = {
   updateTenant,
   toggleTenantStatus,
   resetTenantPassword,
+  getTenantMessagingUsage,
+  resetTenantWhatsAppUsage,
   deleteTenant,
 };

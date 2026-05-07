@@ -11,6 +11,13 @@ const userSchema = new mongoose.Schema(
     phone: { type: String, trim: true },
     isActive: { type: Boolean, default: true },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    // WhatsApp messaging quota — managed per tenant by SuperAdmin (Phase 1: shared platform number)
+    whatsappQuota: { type: Number, default: 100 },
+    whatsappUsed: { type: Number, default: 0 },
+    whatsappQuotaResetAt: { type: Date, default: () => {
+      const d = new Date();
+      return new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    } },
   },
   { timestamps: true }
 );

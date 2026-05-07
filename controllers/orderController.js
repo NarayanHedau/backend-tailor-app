@@ -2,7 +2,7 @@ const Order = require('../models/Order');
 const Customer = require('../models/Customer');
 const Invoice = require('../models/Invoice');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../services/cloudinaryService');
-const { sendTrackingLink } = require('../services/notificationService');
+const { sendOrderConfirmation } = require('../services/notificationService');
 const { orderSchema, itemStatusSchema } = require('../utils/validators');
 const logger = require('../utils/logger');
 
@@ -29,14 +29,22 @@ const createOrder = async (req, res) => {
 
   // Create associated invoice
   const totalAmount = items.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0);
-  await Invoice.create({ tenantId: req.tenantId, order_id: order._id, total_amount: totalAmount });
+  const invoice = await Invoice.create({ tenantId: req.tenantId, order_id: order._id, total_amount: totalAmount });
 
-  // Send tracking link via WhatsApp/SMS
+  // Send order confirmation (WhatsApp with SMS fallback) — shop-branded message
+  // from shared platform sender. Quota and logging handled inside the service.
   try {
-    const trackingUrl = `${process.env.FRONTEND_URL}/track/${order.tracking_id}`;
-    await sendTrackingLink(customer.phone, customer.name, order.order_number, trackingUrl);
+    await sendOrderConfirmation({
+      tenantId: req.tenantId,
+      phone: customer.phone,
+      customerName: customer.name,
+      invoiceNumber: invoice.invoice_number,
+      trackingId: order.tracking_id,
+      customerId: customer._id,
+      orderId: order._id,
+    });
   } catch (err) {
-    logger.warn(`Failed to send tracking link: ${err.message}`);
+    logger.warn(`Failed to send order confirmation: ${err.message}`);
   }
 
   const populatedOrder = await Order.findById(order._id).populate('customer_id').lean();

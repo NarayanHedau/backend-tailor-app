@@ -76,7 +76,8 @@ orderSchema.pre('save', function (next) {
     this.progress = { completed, total, percentage };
 
     // Auto-update order status
-    if (completed === 0) this.status = 'PENDING';
+    const hasStitching = this.items.some((i) => i.status === 'STITCHING');
+    if (completed === 0 && !hasStitching) this.status = 'PENDING';
     else if (completed === total) this.status = 'COMPLETED';
     else this.status = 'IN_PROGRESS';
   }
