@@ -9,3 +9,6 @@
 2026-04-23 16:50:04 [ERROR]: getaddrinfo ENOTFOUND ac-zgpuoqm-shard-00-00.1uxlxlo.mongodb.net - /api/track/1DE4422B - GET - ::1
 >>>>>>> Stashed changes
 2026-05-07 12:15:48 [ERROR]: getaddrinfo ENOTFOUND ac-zgpuoqm-shard-00-00.1uxlxlo.mongodb.net - /api/track/4C0A6AFE - GET - ::1
+2026-05-08 18:02:10 [ERROR]: Expected property name or '}' in JSON at position 1 (line 1 column 2) - /api/auth/forgot-password - POST - ::1
+2026-05-08 18:02:26 [ERROR]: Expected property name or '}' in JSON at position 1 (line 1 column 2) - /api/auth/forgot-password - POST - ::1
+2026-05-08 18:03:02 [ERROR]: Expected property name or '}' in JSON at position 1 (line 1 column 2) - /api/auth/forgot-password - POST - ::ffff:127.0.0.1

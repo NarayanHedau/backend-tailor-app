@@ -149,3 +149,24 @@
 2026-05-07 02:07:45 [INFO]: MongoDB Connected: ac-zgpuoqm-shard-00-00.1uxlxlo.mongodb.net
 2026-05-07 02:11:49 [INFO]: Order confirmation sent via whatsapp for tenant 69e914a02032a461e853ec1f (2/100) → 8308703501
 2026-05-07 12:15:48 [ERROR]: getaddrinfo ENOTFOUND ac-zgpuoqm-shard-00-00.1uxlxlo.mongodb.net - /api/track/4C0A6AFE - GET - ::1
+2026-05-08 17:14:47 [INFO]: Server running in development mode on port 5000
+2026-05-08 17:14:48 [INFO]: MongoDB Connected: ac-zgpuoqm-shard-00-00.1uxlxlo.mongodb.net
+2026-05-08 17:20:03 [WARN]: SMTP not configured — skipping email to narayanhedau11@gmail.com ("Your Tailor Tracker agent account credentials")
+2026-05-08 17:22:53 [WARN]: SMTP not configured — skipping email to stichwell01@yopmail.com ("Your Tailor Tracker tenant account is ready")
+2026-05-08 17:27:31 [INFO]: Server running in development mode on port 5000
+2026-05-08 17:27:32 [INFO]: MongoDB Connected: ac-zgpuoqm-shard-00-00.1uxlxlo.mongodb.net
+2026-05-08 17:28:11 [WARN]: Failed to email tenant credentials: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to
+535 5.7.8  https://support.google.com/mail/?p=BadCredentials 98e67ed59e1d1-3664da41fcasm2228885a91.2 - gsmtp
+2026-05-08 17:33:47 [INFO]: Server running in development mode on port 5000
+2026-05-08 17:33:48 [INFO]: MongoDB Connected: ac-zgpuoqm-shard-00-00.1uxlxlo.mongodb.net
+2026-05-08 17:34:35 [INFO]: Email sent to test02@gmail.com (messageId=<4a8f41a8-f560-30a4-5c73-7e73cbff6a7c@gmail.com>)
+2026-05-08 17:36:54 [INFO]: Email sent to durgesh@yopmail.com (messageId=<c269902f-e033-5182-4b72-616cc97b1ebd@gmail.com>)
+2026-05-08 17:40:00 [INFO]: Email sent to test03@yopmail.com (messageId=<8100e499-908d-5518-4548-a7c8f4c17c87@gmail.com>)
+2026-05-08 18:02:10 [ERROR]: Expected property name or '}' in JSON at position 1 (line 1 column 2) - /api/auth/forgot-password - POST - ::1
+2026-05-08 18:02:26 [ERROR]: Expected property name or '}' in JSON at position 1 (line 1 column 2) - /api/auth/forgot-password - POST - ::1
+2026-05-08 18:03:02 [ERROR]: Expected property name or '}' in JSON at position 1 (line 1 column 2) - /api/auth/forgot-password - POST - ::ffff:127.0.0.1
+2026-05-08 18:05:10 [INFO]: Server running in development mode on port 5000
+2026-05-08 18:05:11 [INFO]: MongoDB Connected: ac-zgpuoqm-shard-00-00.1uxlxlo.mongodb.net
+2026-05-08 18:05:25 [INFO]: Email sent to durgesh@yopmail.com (messageId=<85a58fa4-b08e-de69-a0e2-7ca58ef5492e@gmail.com>)
+2026-05-08 18:10:26 [INFO]: Email sent to durgesh@yopmail.com (messageId=<af101f30-269e-c0ca-8b34-b4454217eaa5@gmail.com>)
+2026-05-08 18:13:33 [INFO]: Email sent to durgesh@yopmail.com (messageId=<2b1fda17-801d-4cf7-2901-d5c079fe605e@gmail.com>)

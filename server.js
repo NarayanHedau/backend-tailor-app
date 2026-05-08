@@ -21,6 +21,7 @@ const productRoutes = require('./routes/productRoutes');
 const purchaseRoutes = require('./routes/purchaseRoutes');
 const saleRoutes = require('./routes/saleRoutes');
 const tenantRoutes = require('./routes/tenantRoutes');
+const agentRoutes = require('./routes/agentRoutes');
 
 const app = express();
 
@@ -47,6 +48,23 @@ app.use('/api/products', productRoutes);
 app.use('/api/purchases', purchaseRoutes);
 app.use('/api/sales', saleRoutes);
 app.use('/api/tenants', tenantRoutes);
+app.use('/api/agents', agentRoutes);
+
+// Redirect reset password requests to the frontend if someone follows a backend-hosted reset link.
+app.get('/admin/reset-password', (req, res) => {
+  const frontendUrl = (process.env.FRONTEND_URL || '').replace(/\/+$|\/+$/, '');
+  const token = req.query.token ? `?token=${encodeURIComponent(req.query.token)}` : '';
+
+  if (!frontendUrl) {
+    return res.status(500).json({
+      success: false,
+      message:
+        'Frontend URL is not configured. Set FRONTEND_URL to your frontend host so reset links can redirect correctly.',
+    });
+  }
+
+  return res.redirect(`${frontendUrl}/admin/reset-password${token}`);
+});
 
 // Health check
 app.get('/api/health', (req, res) => {
